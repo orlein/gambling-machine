@@ -3,7 +3,10 @@ import {
   Alert,
   Button,
   ButtonGroup,
+  Checkbox,
   FormControl,
+  FormControlLabel,
+  FormGroup,
   IconButton,
   InputAdornment,
   InputLabel,
@@ -35,6 +38,7 @@ type State = {
   stake: number;
   defaultProbability: number;
   defaultBet: number;
+  isStopOn10: boolean;
   gambles: Gamble[];
   currentGamble: Gamble;
   error?: string;
@@ -43,6 +47,7 @@ type State = {
 const initialState: State = {
   balance: 0,
   stake: 0,
+  isStopOn10: false,
   defaultBet: 0,
   defaultProbability: 0.5,
   gambles: [],
@@ -73,6 +78,9 @@ type Action =
     }
   | {
       type: 'DONE';
+    }
+  | {
+      type: 'TOGGLE_STOP_ON_10';
     };
 
 const getSafeNumber = (maybeNumber: string, defaultValue: number) => {
@@ -167,6 +175,10 @@ const reducer = (state: State, action: Action): State => {
           };
         }
       }
+
+      if (state.currentGamble.level === LEVELS - 1 && state.isStopOn10) {
+        return state;
+      }
     // state.currentGamble.level === LEVELS - 1 && 'DONE'
     case 'DONE':
       return {
@@ -180,6 +192,11 @@ const reducer = (state: State, action: Action): State => {
           probability: state.defaultProbability,
         },
         error: undefined,
+      };
+    case 'TOGGLE_STOP_ON_10':
+      return {
+        ...state,
+        isStopOn10: !state.isStopOn10,
       };
     default:
       return state;
@@ -256,6 +273,10 @@ const Home: NextPage = () => {
     dispatch({ type: 'DONE' });
   }, []);
 
+  const handleToggleStopOn10 = React.useCallback(() => {
+    dispatch({ type: 'TOGGLE_STOP_ON_10' });
+  }, []);
+
   const LEVELS_ARRAY = React.useMemo(() => [...new Array(LEVELS)], []);
 
   return (
@@ -286,6 +307,17 @@ const Home: NextPage = () => {
           <Button onClick={() => handleRecharge(30)}>Recharge $30</Button>
           <Button onClick={() => handleRecharge(40)}>Recharge $40</Button>
         </ButtonGroup>
+        <FormGroup>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={state.isStopOn10}
+                onClick={() => handleToggleStopOn10()}
+              />
+            }
+            label={state.isStopOn10 ? 'STOP ON 10' : 'NOT STOP ON 10'}
+          />
+        </FormGroup>
         <Typography>Current Bet: ${state.defaultBet}</Typography>
         <FormControl sx={{ m: 1, width: '25ch' }} variant="outlined">
           <InputLabel htmlFor="outlined-adornment-password">
