@@ -7,7 +7,7 @@ export default function Copyright() {
     <Typography variant="body2" color="text.secondary" align="center">
       {'Copyright © '}
       <MuiLink color="inherit" href="#">
-        "CAN YOU GET TO THE 10?" by @Orlein
+        CAN YOU GET TO THE 10? by @Orlein
       </MuiLink>{' '}
       {new Date().getFullYear()}.
     </Typography>
