@@ -6,8 +6,10 @@ export default function Copyright() {
   return (
     <Typography variant="body2" color="text.secondary" align="center">
       {'Copyright © '}
-      <MuiLink color="inherit" href="#">
-        CAN YOU GET TO THE 10? by @Orlein
+      <MuiLink
+        color="inherit"
+        href="https://github.com/orlein/gambling-machine">
+        CAN YOU GET A MILLION? by @Orlein
       </MuiLink>{' '}
       {new Date().getFullYear()}.
     </Typography>

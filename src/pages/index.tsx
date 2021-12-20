@@ -20,16 +20,20 @@ import type { NextPage } from 'next';
 import * as React from 'react';
 import Copyright from '../components/Copyright';
 
+const LEVELS = 10;
+
 type Gamble = {
   bet: number;
   level: number;
   status: 'WAITING' | 'PROGRESS' | 'WON' | 'LOST';
   payoff: number;
+  probability: number;
 };
 
 type State = {
   balance: number;
   stake: number;
+  defaultProbability: number;
   defaultBet: number;
   gambles: Gamble[];
   currentGamble: Gamble;
@@ -40,10 +44,12 @@ const initialState: State = {
   balance: 0,
   stake: 0,
   defaultBet: 0,
+  defaultProbability: 0.5,
   gambles: [],
   currentGamble: {
     bet: 0,
     level: 0,
+    probability: 0.5,
     status: 'WAITING',
     payoff: 0,
   },
@@ -59,11 +65,20 @@ type Action =
       payload: { defaultBet: string };
     }
   | {
+      type: 'SET_DEFAULT_PROBABILITY';
+      payload: { defaultProbability: string };
+    }
+  | {
       type: 'RAISE_TO_DOUBLE';
     }
   | {
       type: 'DONE';
     };
+
+const getSafeNumber = (maybeNumber: string, defaultValue: number) => {
+  const parsed = Number(maybeNumber);
+  return isNaN(parsed) ? defaultValue : parsed;
+};
 
 const reducer = (state: State, action: Action): State => {
   switch (action.type) {
@@ -73,13 +88,26 @@ const reducer = (state: State, action: Action): State => {
         balance: state.balance + action.payload.balance,
       };
     case 'SET_DEFAULT_BET':
-      const defaultBet = Number(action.payload.defaultBet);
+      const defaultBet = getSafeNumber(action.payload.defaultBet, 0);
       return {
         ...state,
-        defaultBet: isNaN(defaultBet) ? 0 : defaultBet,
+        defaultBet,
         currentGamble: {
           ...state.currentGamble,
           bet: defaultBet,
+        },
+      };
+    case 'SET_DEFAULT_PROBABILITY':
+      const defaultProbability =
+        getSafeNumber(action.payload.defaultProbability.split('%')[0], 50) /
+        100;
+
+      return {
+        ...state,
+        defaultProbability,
+        currentGamble: {
+          ...state.currentGamble,
+          probability: defaultProbability,
         },
       };
     case 'RAISE_TO_DOUBLE':
@@ -96,6 +124,7 @@ const reducer = (state: State, action: Action): State => {
           error: 'Plase set your bet',
         };
       }
+
       if (state.currentGamble.level === 0) {
         return {
           ...state,
@@ -108,31 +137,37 @@ const reducer = (state: State, action: Action): State => {
           error: undefined,
         };
       }
-      const halfProbability = Math.random() >= 0.5;
-      if (halfProbability) {
-        return {
-          ...state,
-          currentGamble: {
-            ...state.currentGamble,
-            level: state.currentGamble.level + 1,
-            payoff: state.currentGamble.payoff * 2,
-          },
-          error: undefined,
-        };
-      } else {
-        return {
-          ...state,
-          gambles: [
-            ...state.gambles,
-            { ...state.currentGamble, payoff: 0, status: 'LOST' },
-          ],
-          currentGamble: {
-            ...initialState.currentGamble,
-            bet: state.defaultBet,
-          },
-          error: undefined,
-        };
+
+      if (state.currentGamble.level < LEVELS - 1) {
+        const random = Math.random();
+        const probability = random >= 1 - state.currentGamble.probability;
+
+        if (probability) {
+          return {
+            ...state,
+            currentGamble: {
+              ...state.currentGamble,
+              level: state.currentGamble.level + 1,
+              payoff: state.currentGamble.payoff * 2,
+            },
+            error: undefined,
+          };
+        } else {
+          return {
+            ...state,
+            gambles: [
+              ...state.gambles,
+              { ...state.currentGamble, payoff: 0, status: 'LOST' },
+            ],
+            currentGamble: {
+              ...initialState.currentGamble,
+              bet: state.defaultBet,
+            },
+            error: undefined,
+          };
+        }
       }
+    // state.currentGamble.level === LEVELS - 1 && 'DONE'
     case 'DONE':
       return {
         ...state,
@@ -140,7 +175,9 @@ const reducer = (state: State, action: Action): State => {
         gambles: [...state.gambles, { ...state.currentGamble, status: 'WON' }],
         currentGamble: {
           ...initialState.currentGamble,
+          level: 0,
           bet: state.defaultBet,
+          probability: state.defaultProbability,
         },
         error: undefined,
       };
@@ -149,11 +186,11 @@ const reducer = (state: State, action: Action): State => {
   }
 };
 
-const LEVELS = 10;
-
 const Home: NextPage = () => {
   const [state, dispatch] = React.useReducer(reducer, initialState);
   const [defaultBet, setDefaultBet] = React.useState<string>('');
+  const [defaultProbability, setDefaultProbability] =
+    React.useState<string>('50%');
 
   React.useEffect(() => {
     const eventHandler = (e: KeyboardEvent) => {
@@ -192,6 +229,15 @@ const Home: NextPage = () => {
   const handleDefaultBet = React.useCallback(
     (defaultBet: string) =>
       dispatch({ type: 'SET_DEFAULT_BET', payload: { defaultBet } }),
+    []
+  );
+
+  const handleDefaultProbability = React.useCallback(
+    (defaultProbability: string) =>
+      dispatch({
+        type: 'SET_DEFAULT_PROBABILITY',
+        payload: { defaultProbability },
+      }),
     []
   );
 
@@ -259,11 +305,45 @@ const Home: NextPage = () => {
             endAdornment={
               <InputAdornment position="end">
                 <IconButton
-                  aria-label="toggle password visibility"
+                  aria-label="set default bet"
                   edge="end"
                   onMouseDown={handleMouseDown}
                   onClick={() => {
                     handleDefaultBet(defaultBet);
+                  }}>
+                  <CheckIcon />
+                </IconButton>
+              </InputAdornment>
+            }
+            label="Set default bet"
+          />
+        </FormControl>
+        <Typography>
+          Current Probability: {state.defaultProbability * 100} %
+        </Typography>
+        <FormControl sx={{ m: 1, width: '25ch' }} variant="outlined">
+          <InputLabel htmlFor="outlined-adornment-password">
+            Set default probability
+          </InputLabel>
+          <OutlinedInput
+            id="set-default-probability"
+            value={defaultProbability}
+            onChange={({ target: { value } }) => {
+              setDefaultProbability(value);
+            }}
+            onKeyDown={({ key }) => {
+              if (key === 'Enter') {
+                handleDefaultProbability(defaultProbability);
+              }
+            }}
+            endAdornment={
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label="set default probability"
+                  edge="end"
+                  onMouseDown={handleMouseDown}
+                  onClick={() => {
+                    handleDefaultProbability(defaultProbability);
                   }}>
                   <CheckIcon />
                 </IconButton>
@@ -287,7 +367,9 @@ const Home: NextPage = () => {
                   <div>
                     <Button
                       variant="contained"
-                      onClick={handleRaise}
+                      onClick={() => {
+                        handleRaise();
+                      }}
                       sx={{ mt: 1, mr: 1 }}>
                       {index === 0
                         ? 'START'
