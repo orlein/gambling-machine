@@ -1,5 +1,6 @@
 import CheckIcon from '@mui/icons-material/Check';
 import {
+  Alert,
   Button,
   ButtonGroup,
   FormControl,
@@ -32,6 +33,7 @@ type State = {
   defaultBet: number;
   gambles: Gamble[];
   currentGamble: Gamble;
+  error?: string;
 };
 
 const initialState: State = {
@@ -81,6 +83,19 @@ const reducer = (state: State, action: Action): State => {
         },
       };
     case 'RAISE_TO_DOUBLE':
+      if (state.balance <= 0 && state.currentGamble.level === 0) {
+        return {
+          ...state,
+          error: "Please Recharge your bet. It's free!",
+        };
+      }
+
+      if (state.currentGamble.bet <= 0 && state.currentGamble.level === 0) {
+        return {
+          ...state,
+          error: 'Plase set your bet',
+        };
+      }
       if (state.currentGamble.level === 0) {
         return {
           ...state,
@@ -90,6 +105,7 @@ const reducer = (state: State, action: Action): State => {
             level: state.currentGamble.level + 1,
             payoff: state.currentGamble.bet,
           },
+          error: undefined,
         };
       }
       const halfProbability = Math.random() >= 0.5;
@@ -101,6 +117,7 @@ const reducer = (state: State, action: Action): State => {
             level: state.currentGamble.level + 1,
             payoff: state.currentGamble.payoff * 2,
           },
+          error: undefined,
         };
       } else {
         return {
@@ -113,6 +130,7 @@ const reducer = (state: State, action: Action): State => {
             ...initialState.currentGamble,
             bet: state.defaultBet,
           },
+          error: undefined,
         };
       }
     case 'DONE':
@@ -124,6 +142,7 @@ const reducer = (state: State, action: Action): State => {
           ...initialState.currentGamble,
           bet: state.defaultBet,
         },
+        error: undefined,
       };
     default:
       return state;
@@ -135,6 +154,35 @@ const LEVELS = 10;
 const Home: NextPage = () => {
   const [state, dispatch] = React.useReducer(reducer, initialState);
   const [defaultBet, setDefaultBet] = React.useState<string>('');
+
+  React.useEffect(() => {
+    const eventHandler = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'R':
+        case 'r':
+          dispatch({ type: 'RECHARGE', payload: { balance: 40 } });
+          break;
+        case 'A':
+        case 'a':
+          dispatch({ type: 'SET_DEFAULT_BET', payload: { defaultBet: '10' } });
+          break;
+        case 'Z':
+        case 'z':
+          dispatch({ type: 'RAISE_TO_DOUBLE' });
+          break;
+        case 'X':
+        case 'x':
+          dispatch({ type: 'DONE' });
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener('keydown', eventHandler);
+    return () => {
+      window.removeEventListener('keydown', eventHandler);
+    };
+  }, []);
 
   const handleRecharge = React.useCallback(
     (balance: number) => dispatch({ type: 'RECHARGE', payload: { balance } }),
@@ -176,8 +224,13 @@ const Home: NextPage = () => {
           '& > :not(style)': { m: 1 },
         }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Gambling Machine
+          CAN YOU GET A MILLION?
         </Typography>
+        <Typography>Press R to recharge $40</Typography>
+        <Typography>Press A to set default bet to $10</Typography>
+        <Typography>Press Z to Raise!</Typography>
+        <Typography>Press X to Get the payoff.</Typography>
+        {state.error && <Alert severity="error">{state.error}</Alert>}
         <Typography>Player Balance: ${state.balance}</Typography>
         <ButtonGroup
           variant="contained"
@@ -187,7 +240,7 @@ const Home: NextPage = () => {
           <Button onClick={() => handleRecharge(30)}>Recharge $30</Button>
           <Button onClick={() => handleRecharge(40)}>Recharge $40</Button>
         </ButtonGroup>
-        <Typography>Current Bet: {state.defaultBet}</Typography>
+        <Typography>Current Bet: ${state.defaultBet}</Typography>
         <FormControl sx={{ m: 1, width: '25ch' }} variant="outlined">
           <InputLabel htmlFor="outlined-adornment-password">
             Set default bet
@@ -228,7 +281,7 @@ const Home: NextPage = () => {
                 <Box sx={{ mb: 2 }}>
                   <div>
                     {index !== 0 && (
-                      <Typography>{state.currentGamble.payoff}</Typography>
+                      <Typography>${state.currentGamble.payoff}</Typography>
                     )}
                   </div>
                   <div>
