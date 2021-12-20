@@ -1,10 +1,4 @@
-import { Timeline } from '@mui/icons-material';
 import CheckIcon from '@mui/icons-material/Check';
-import TimelineConnector from '@mui/lab/TimelineConnector';
-import TimelineContent from '@mui/lab/TimelineContent';
-import TimelineDot from '@mui/lab/TimelineDot';
-import TimelineItem from '@mui/lab/TimelineItem';
-import TimelineSeparator from '@mui/lab/TimelineSeparator';
 import {
   Button,
   ButtonGroup,
@@ -12,7 +6,6 @@ import {
   IconButton,
   InputAdornment,
   InputLabel,
-  NoSsr,
   OutlinedInput,
   Step,
   StepContent,
@@ -38,6 +31,7 @@ type State = {
   stake: number;
   defaultBet: number;
   gambles: Gamble[];
+  currentGamble: Gamble;
 };
 
 const initialState: State = {
@@ -45,6 +39,12 @@ const initialState: State = {
   stake: 0,
   defaultBet: 0,
   gambles: [],
+  currentGamble: {
+    bet: 0,
+    level: 0,
+    status: 'WAITING',
+    payoff: 0,
+  },
 };
 
 type Action =
@@ -55,6 +55,12 @@ type Action =
   | {
       type: 'SET_DEFAULT_BET';
       payload: { defaultBet: string };
+    }
+  | {
+      type: 'RAISE_TO_DOUBLE';
+    }
+  | {
+      type: 'DONE';
     };
 
 const reducer = (state: State, action: Action): State => {
@@ -65,11 +71,59 @@ const reducer = (state: State, action: Action): State => {
         balance: state.balance + action.payload.balance,
       };
     case 'SET_DEFAULT_BET':
+      const defaultBet = Number(action.payload.defaultBet);
       return {
         ...state,
-        defaultBet: isNaN(Number(action.payload.defaultBet))
-          ? 0
-          : Number(action.payload.defaultBet),
+        defaultBet: isNaN(defaultBet) ? 0 : defaultBet,
+        currentGamble: {
+          ...state.currentGamble,
+          bet: defaultBet,
+        },
+      };
+    case 'RAISE_TO_DOUBLE':
+      if (state.currentGamble.level === 0) {
+        return {
+          ...state,
+          balance: state.balance - state.currentGamble.bet,
+          currentGamble: {
+            ...state.currentGamble,
+            level: state.currentGamble.level + 1,
+            payoff: state.currentGamble.bet,
+          },
+        };
+      }
+      const halfProbability = Math.random() >= 0.5;
+      if (halfProbability) {
+        return {
+          ...state,
+          currentGamble: {
+            ...state.currentGamble,
+            level: state.currentGamble.level + 1,
+            payoff: state.currentGamble.payoff * 2,
+          },
+        };
+      } else {
+        return {
+          ...state,
+          gambles: [
+            ...state.gambles,
+            { ...state.currentGamble, payoff: 0, status: 'LOST' },
+          ],
+          currentGamble: {
+            ...initialState.currentGamble,
+            bet: state.defaultBet,
+          },
+        };
+      }
+    case 'DONE':
+      return {
+        ...state,
+        balance: state.balance + state.currentGamble.payoff,
+        gambles: [...state.gambles, { ...state.currentGamble, status: 'WON' }],
+        currentGamble: {
+          ...initialState.currentGamble,
+          bet: state.defaultBet,
+        },
       };
     default:
       return state;
@@ -77,27 +131,6 @@ const reducer = (state: State, action: Action): State => {
 };
 
 const LEVELS = 10;
-
-const steps = [
-  {
-    label: 'Select campaign settings',
-    description: `For each ad campaign that you create, you can control how much
-              you're willing to spend on clicks and conversions, which networks
-              and geographical locations you want your ads to show on, and more.`,
-  },
-  {
-    label: 'Create an ad group',
-    description:
-      'An ad group contains one or more ads which target a shared set of keywords.',
-  },
-  {
-    label: 'Create an ad',
-    description: `Try out different ad text to see what brings in the most customers,
-              and learn how to enhance your ads using features like ad extensions.
-              If you run into any problems with your ads, find out how to tell if
-              they're running and how to resolve approval issues.`,
-  },
-];
 
 const Home: NextPage = () => {
   const [state, dispatch] = React.useReducer(reducer, initialState);
@@ -121,19 +154,13 @@ const Home: NextPage = () => {
     []
   );
 
-  const [activeStep, setActiveStep] = React.useState(0);
+  const handleRaise = React.useCallback(() => {
+    dispatch({ type: 'RAISE_TO_DOUBLE' });
+  }, []);
 
-  const handleNext = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
-  };
-
-  const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
-
-  const handleReset = () => {
-    setActiveStep(0);
-  };
+  const handleDone = React.useCallback(() => {
+    dispatch({ type: 'DONE' });
+  }, []);
 
   const LEVELS_ARRAY = React.useMemo(() => [...new Array(LEVELS)], []);
 
@@ -192,6 +219,41 @@ const Home: NextPage = () => {
             label="Set default bet"
           />
         </FormControl>
+
+        <Stepper activeStep={state.currentGamble.level} orientation="vertical">
+          {LEVELS_ARRAY.map((step, index) => (
+            <Step key={index}>
+              <StepLabel>{'Step'}</StepLabel>
+              <StepContent>
+                <Box sx={{ mb: 2 }}>
+                  <div>
+                    {index !== 0 && (
+                      <Typography>{state.currentGamble.payoff}</Typography>
+                    )}
+                  </div>
+                  <div>
+                    <Button
+                      variant="contained"
+                      onClick={handleRaise}
+                      sx={{ mt: 1, mr: 1 }}>
+                      {index === 0
+                        ? 'START'
+                        : index === LEVELS_ARRAY.length - 1
+                        ? 'Pay off'
+                        : 'Raise'}
+                    </Button>
+                    <Button
+                      disabled={index === 0}
+                      onClick={handleDone}
+                      sx={{ mt: 1, mr: 1 }}>
+                      Done
+                    </Button>
+                  </div>
+                </Box>
+              </StepContent>
+            </Step>
+          ))}
+        </Stepper>
 
         <Copyright />
       </Box>
