@@ -21,9 +21,11 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import type { NextPage } from 'next';
 import * as React from 'react';
+import RechargeButton from '../components/button/RechargeButton';
 import Copyright from '../components/Copyright';
 
 const LEVELS = 10;
+const BALANCE_LIST = [10, 20, 30, 40];
 
 type Gamble = {
   bet: number;
@@ -302,10 +304,13 @@ const Home: NextPage = () => {
         <ButtonGroup
           variant="contained"
           aria-label="outlined primary button group">
-          <Button onClick={() => handleRecharge(10)}>Recharge $10</Button>
-          <Button onClick={() => handleRecharge(20)}>Recharge $20</Button>
-          <Button onClick={() => handleRecharge(30)}>Recharge $30</Button>
-          <Button onClick={() => handleRecharge(40)}>Recharge $40</Button>
+          {BALANCE_LIST.map((balance: number) => (
+            <RechargeButton
+              key={balance}
+              balance={balance}
+              handleRecharge={handleRecharge}
+            />
+          ))}
         </ButtonGroup>
         <FormGroup>
           <FormControlLabel
