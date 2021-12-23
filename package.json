@@ -3,7 +3,7 @@
   "version": "5.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env NEXT_PUBLIC_API_MOCKING=enabled next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -17,16 +17,21 @@
     "@mui/lab": "^5.0.0-alpha.60",
     "@mui/material": "latest",
     "@reduxjs/toolkit": "^1.7.1",
+    "msw": "^0.36.3",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
     "react-redux": "^7.2.6"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@next/eslint-plugin-next": "^12.0.7",
     "@types/react": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "typescript": "latest"
+  },
+  "msw": {
+    "workerDirectory": "public"
   }
 }
